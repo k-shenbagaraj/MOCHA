@@ -26,6 +26,23 @@ pip3 install defusedxml
 sudo apt install python3-zmq
 ```
 
+## Rajant to WiFi fallback
+
+MOCHA can use WiFi as a backup transport for the same ZMQ sync channel used over
+the Rajant mesh. Add each robot's WiFi address to
+`mocha_core/config/robot_configs.yaml`:
+
+By default, MOCHA falls back to WiFi when Rajant RSSI is below the threshold or
+when RSSI messages stop for `rajant_signal_timeout` seconds. To also keep a
+periodic WiFi backup sync running while Rajant is healthy:
+
+```bash
+ros2 launch mocha_launch titan.launch.py wifi_backup_always_on:=true
+```
+
+Useful knobs are `wifi_fallback_enabled`, `wifi_backup_always_on`,
+`wifi_backup_period`, and `rajant_signal_timeout`.
+
 ## Contribution - Questions
 
 Please [fill-out an issue](https://github.com/KumarRobotics/MOCHA/issues) if you have any questions.

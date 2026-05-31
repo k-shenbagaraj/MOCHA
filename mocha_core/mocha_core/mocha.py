@@ -22,6 +22,7 @@ import subprocess
 import mocha_core.database_server as ds
 import mocha_core.database_utils as du
 import mocha_core.synchronize_channel as sync
+from mocha_core.zmq_comm_node import Transport
 
 
 def ping(host):
@@ -56,12 +57,24 @@ class Mocha(Node):
         self.declare_parameter("robot_name", "")
         self.declare_parameter("rssi_threshold", 20)
         self.declare_parameter("client_timeout", 6.0)
+        self.declare_parameter("wifi_fallback_enabled", True)
+        self.declare_parameter("wifi_backup_always_on", False)
+        self.declare_parameter("wifi_backup_period", 10.0)
+        self.declare_parameter("rajant_signal_timeout", 10.0)
         self.declare_parameter("robot_configs", "")
         self.declare_parameter("radio_configs", "")
         self.declare_parameter("topic_configs", "")
 
         self.this_robot = self.get_parameter("robot_name").get_parameter_value().string_value
         self.rssi_threshold = self.get_parameter("rssi_threshold").get_parameter_value().integer_value
+        self.wifi_fallback_enabled = self.get_parameter(
+            "wifi_fallback_enabled").get_parameter_value().bool_value
+        self.wifi_backup_always_on = self.get_parameter(
+            "wifi_backup_always_on").get_parameter_value().bool_value
+        self.wifi_backup_period = self.get_parameter(
+            "wifi_backup_period").get_parameter_value().double_value
+        self.rajant_signal_timeout = self.get_parameter(
+            "rajant_signal_timeout").get_parameter_value().double_value
 
         if len(self.this_robot) == 0:
             self.logger.error(f"{self.this_robot} - MOCHA Server - Empty robot name")
@@ -72,6 +85,9 @@ class Mocha(Node):
         self.client_timeout = self.get_parameter("client_timeout").get_parameter_value().double_value
         self.logger.info(f"{self.this_robot} - MOCHA Server - " +
                         f"Client timeout: {self.client_timeout}")
+        self.logger.info(f"{self.this_robot} - MOCHA Server - " +
+                        f"WiFi fallback: {self.wifi_fallback_enabled}, " +
+                        f"always-on WiFi backup: {self.wifi_backup_always_on}")
 
         # Load and check robot configs
         self.robot_configs_file = self.get_parameter("robot_configs").get_parameter_value().string_value
@@ -114,9 +130,15 @@ class Mocha(Node):
         # Check that we can ping the radios
         ip = self.robot_configs[self.this_robot]["IP-address"]
         if not ping(ip):
-            self.logger.error(f"{self.this_robot} - MOCHA Server - " +
-                             f"Cannot ping self {ip}. Is the radio on?")
-            raise ValueError("Cannot ping self")
+            wifi_ip = self.robot_configs[self.this_robot].get("wifi-IP-address")
+            if self.wifi_fallback_enabled and wifi_ip:
+                self.logger.warning(f"{self.this_robot} - MOCHA Server - " +
+                                    f"Cannot ping Rajant self {ip}; " +
+                                    f"continuing with WiFi fallback {wifi_ip}")
+            else:
+                self.logger.error(f"{self.this_robot} - MOCHA Server - " +
+                                 f"Cannot ping self {ip}. Is the radio on?")
+                raise ValueError("Cannot ping self")
 
         # Create database server
         self.DBServer = ds.DatabaseServer(self.robot_configs,
@@ -130,6 +152,9 @@ class Mocha(Node):
 
         # Start comm channels with other robots
         self.all_channels = []
+        self.channels_by_robot = {}
+        self.link_state = {}
+        self.missing_wifi_warned = set()
         self.other_robots = [i for i in list(self.robot_configs.keys()) if i !=
                              self.this_robot]
         for other_robot in self.other_robots:
@@ -147,6 +172,12 @@ class Mocha(Node):
                                    self.client_timeout, self)
             channel.run()
             self.all_channels.append(channel)
+            self.channels_by_robot[other_robot] = channel
+            self.link_state[other_robot] = {
+                "last_rssi": None,
+                "last_rssi_time": None,
+                "last_wifi_sync": 0.0,
+            }
 
             # Attach a radio trigger to each channel. This will be triggered
             # when the RSSI is high enough. You can use another approach here
@@ -160,6 +191,8 @@ class Mocha(Node):
                 make_callback(channel),
                 10
             )
+        if self.wifi_fallback_enabled or self.wifi_backup_always_on:
+            self.create_timer(1.0, self.wifi_backup_timer_cb)
 
     def shutdown(self, reason):
         # Only trigger shutdown once
@@ -181,13 +214,60 @@ class Mocha(Node):
 
     def rssi_cb(self, data, comm_node):
         rssi = data.data
+        state = self.link_state.get(comm_node.target_robot)
+        if state is not None:
+            state["last_rssi"] = rssi
+            state["last_rssi_time"] = time.monotonic()
         if rssi > self.rssi_threshold:
             self.num_robot_in_comm += 1
             try:
-                self.logger.info(f"{self.this_robot} <- {comm_node.target_robot}: Triggering comms")
-                comm_node.trigger_sync()
+                self.trigger_channel(comm_node, Transport.RAJANT,
+                                     f"Rajant RSSI {rssi}")
             except:
                 traceback.print_exception(*sys.exc_info())
+        elif self.wifi_fallback_enabled:
+            self.trigger_wifi_if_ready(comm_node, f"Rajant RSSI {rssi} below threshold")
+
+    def trigger_channel(self, channel, transport, reason):
+        self.logger.info(
+            f"{self.this_robot} <- {channel.target_robot}: " +
+            f"Triggering comms via {transport.value} ({reason})"
+        )
+        channel.trigger_sync(transport)
+
+    def trigger_wifi_if_ready(self, channel, reason):
+        target_config = self.robot_configs[channel.target_robot]
+        if not target_config.get("wifi-IP-address"):
+            if channel.target_robot not in self.missing_wifi_warned:
+                self.missing_wifi_warned.add(channel.target_robot)
+                self.logger.warning(
+                    f"{self.this_robot} <- {channel.target_robot}: " +
+                    "WiFi fallback requested, but wifi-IP-address is not configured"
+                )
+            return
+        state = self.link_state[channel.target_robot]
+        now = time.monotonic()
+        if now - state["last_wifi_sync"] < self.wifi_backup_period:
+            return
+        state["last_wifi_sync"] = now
+        self.trigger_channel(channel, Transport.WIFI, reason)
+
+    def wifi_backup_timer_cb(self):
+        now = time.monotonic()
+        for target_robot, channel in self.channels_by_robot.items():
+            state = self.link_state[target_robot]
+            signal_stale = (
+                state["last_rssi_time"] is None or
+                now - state["last_rssi_time"] > self.rajant_signal_timeout
+            )
+            signal_low = (
+                state["last_rssi"] is not None and
+                state["last_rssi"] <= self.rssi_threshold
+            )
+            if self.wifi_backup_always_on:
+                self.trigger_wifi_if_ready(channel, "always-on WiFi backup")
+            elif self.wifi_fallback_enabled and (signal_stale or signal_low):
+                self.trigger_wifi_if_ready(channel, "Rajant signal stale or weak")
 
 
 def main(args=None):

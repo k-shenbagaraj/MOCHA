@@ -22,6 +22,11 @@ class SyncStatus(enum.Enum):
     FAILURE = 2
 
 
+class Transport(enum.Enum):
+    RAJANT = "rajant"
+    WIFI = "wifi"
+
+
 class Comm_node:
     def __init__(self, this_node, client_node, robot_configs,
                  client_callback, server_callback, client_timeout, ros_node):
@@ -67,6 +72,8 @@ class Comm_node:
         self.client_callback = client_callback
         self.server_callback = server_callback
         self.client_timeout = client_timeout
+        self.transport_lock = threading.Lock()
+        self.transport = Transport.RAJANT
 
         # Create a publisher for the client bandwidth
         self.pub_client_stats = self.ros_node.create_publisher(
@@ -86,35 +93,72 @@ class Comm_node:
         self.server_running.clear()
         self.th.start()
 
-    def connect_send_message(self, msg):
+    @staticmethod
+    def normalize_transport(transport):
+        if isinstance(transport, Transport):
+            return transport
+        try:
+            return Transport(str(transport).lower())
+        except ValueError:
+            raise ValueError(f"Unknown transport: {transport}")
+
+    @staticmethod
+    def get_robot_address(robot_config, transport):
+        transport = Comm_node.normalize_transport(transport)
+        if transport == Transport.WIFI:
+            return robot_config.get("wifi-IP-address")
+        return robot_config["IP-address"]
+
+    def set_transport(self, transport):
+        with self.transport_lock:
+            self.transport = self.normalize_transport(transport)
+
+    def get_transport(self):
+        with self.transport_lock:
+            return self.transport
+
+    def connect_send_message(self, msg, transport=None):
         # TODO keep connection open instead of opening in each call
         # Msg check
         if not isinstance(msg, bytes):
             self.logger.debug(f"{self.this_node} - Node - SENDMSG: " +
                            "msg has to be bytes")
             return
+        transport = self.normalize_transport(transport or self.get_transport())
 
         # Check that we are in the right state
         self.syncStatus_lock.acquire()
         if self.syncStatus != SyncStatus.IDLE:
             self.logger.debug(f"{self.this_node} - Node - SENDMSG: " +
                            "Sync is running, abort")
+            self.syncStatus_lock.release()
             return
-        self.client_thread = SyncStatus.SYNCHRONIZING
+        self.syncStatus = SyncStatus.SYNCHRONIZING
         self.syncStatus_lock.release()
 
         # We're all set, send message
         target_robot = self.robot_configs[self.client_node]
         port_offset = target_robot["clients"].index(self.this_node)
+        target_addr = self.get_robot_address(target_robot, transport)
+        if not target_addr:
+            self.logger.error(
+                f"{self.this_node} - Node - SENDMSG: " +
+                f"No {transport.value} address configured for {self.client_node}"
+            )
+            self.client_callback(None)
+            self.syncStatus_lock.acquire()
+            self.syncStatus = SyncStatus.IDLE
+            self.syncStatus_lock.release()
+            return
         server_endpoint = (
             "tcp://"
-            + target_robot["IP-address"]
+            + target_addr
             + ":"
             + str(int(target_robot["base-port"]) + port_offset)
         )
 
         self.logger.debug(f"{self.this_node} - Node - SENDMSG: " +
-                       f"Connecting to server {server_endpoint}")
+                       f"Connecting to server {server_endpoint} via {transport.value}")
         client = self.context.socket(zmq.REQ)
         client.connect(server_endpoint)
 

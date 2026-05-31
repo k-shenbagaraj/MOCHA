@@ -1,6 +1,7 @@
 basestation:
   node-type: "base_station"
   IP-address: "10.10.10.100"
+  wifi-IP-address: ""
   using-radio: "brick-1"
   base-port: "1234"
   clients:
@@ -12,6 +13,7 @@ basestation:
 europa:
   node-type: "ground_robot"
   IP-address: "10.10.10.101"
+  wifi-IP-address: ""
   using-radio: "blue-2"
   base-port: "2234"
   clients:
@@ -23,6 +25,7 @@ europa:
 callisto:
   node-type: "ground_robot"
   IP-address: "10.10.10.102"
+  wifi-IP-address: ""
   using-radio: "blue-6"
   base-port: "3234"
   clients:
@@ -34,6 +37,7 @@ callisto:
 io:
   node-type: "ground_robot"
   IP-address: "10.10.10.103"
+  wifi-IP-address: ""
   using-radio: "blue-5"
   base-port: "4234"
   clients:
@@ -45,6 +49,7 @@ io:
 titan:
   node-type: "aerial_robot"
   IP-address: "10.10.10.107"
+  wifi-IP-address: ""
   using-radio: "blue-1"
   base-port: "6234"
   clients:

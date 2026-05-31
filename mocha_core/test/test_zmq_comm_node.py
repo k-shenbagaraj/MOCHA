@@ -113,12 +113,22 @@ class Test(unittest.TestCase):
         # Send message from node_groundstation to robot 2
         node_groundstation.connect_send_message(random_msg)
         node_charon.connect_send_message(random_msg)
+        self.assertEqual(
+            "127.0.0.1",
+            zmq_comm_node.Comm_node.get_robot_address(
+                self.robot_configs["charon"],
+                zmq_comm_node.Transport.WIFI
+            )
+        )
+
+        wifi_msg = b"WIFI" + random_msg
+        node_groundstation.connect_send_message(wifi_msg, "wifi")
 
         # Terminate robots and test assertion
         node_groundstation.terminate()
         node_charon.terminate()
-        self.assertEqual(random_msg + b"CHARONSERVER", self.answer_cb_gs_client,
-                         "Sent %s" % random_msg)
+        self.assertEqual(wifi_msg + b"CHARONSERVER", self.answer_cb_gs_client,
+                         "Sent %s" % wifi_msg)
         self.assertEqual(random_msg + b"GSSERVER", self.answer_cb_ch_client,
                          "Sent %s" % random_msg)
 

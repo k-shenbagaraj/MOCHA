@@ -4,6 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -50,12 +51,32 @@ def generate_launch_description():
         'sigterm_timeout', default_value='10',
         description='Modify default SIGTERM timeout to 10 seconds'
     )
+    wifi_fallback_enabled_arg = DeclareLaunchArgument(
+        'wifi_fallback_enabled', default_value='true',
+        description='Use WiFi when Rajant RSSI is weak or missing'
+    )
+    wifi_backup_always_on_arg = DeclareLaunchArgument(
+        'wifi_backup_always_on', default_value='false',
+        description='Periodically sync over WiFi even when Rajant is healthy'
+    )
+    wifi_backup_period_arg = DeclareLaunchArgument(
+        'wifi_backup_period', default_value='10.0',
+        description='Minimum seconds between WiFi backup sync attempts per peer'
+    )
+    rajant_signal_timeout_arg = DeclareLaunchArgument(
+        'rajant_signal_timeout', default_value='10.0',
+        description='Seconds without RSSI before Rajant is considered stale'
+    )
 
     # Get launch configurations
     robot_name = LaunchConfiguration('robot_name')
     robot_configs = LaunchConfiguration('robot_configs')
     topic_configs = LaunchConfiguration('topic_configs')
     radio_configs = LaunchConfiguration('radio_configs')
+    wifi_fallback_enabled = LaunchConfiguration('wifi_fallback_enabled')
+    wifi_backup_always_on = LaunchConfiguration('wifi_backup_always_on')
+    wifi_backup_period = LaunchConfiguration('wifi_backup_period')
+    rajant_signal_timeout = LaunchConfiguration('rajant_signal_timeout')
 
     # Define nodes
     mocha_node = Node(
@@ -68,7 +89,15 @@ def generate_launch_description():
             'robot_configs': robot_configs,
             'radio_configs': radio_configs,
             'topic_configs': topic_configs,
-            'rssi_threshold': 35
+            'rssi_threshold': 35,
+            'wifi_fallback_enabled': ParameterValue(
+                wifi_fallback_enabled, value_type=bool),
+            'wifi_backup_always_on': ParameterValue(
+                wifi_backup_always_on, value_type=bool),
+            'wifi_backup_period': ParameterValue(
+                wifi_backup_period, value_type=float),
+            'rajant_signal_timeout': ParameterValue(
+                rajant_signal_timeout, value_type=float)
         }]
     )
 
@@ -102,6 +131,10 @@ def generate_launch_description():
         robot_configs_arg,
         topic_configs_arg,
         radio_configs_arg,
+        wifi_fallback_enabled_arg,
+        wifi_backup_always_on_arg,
+        wifi_backup_period_arg,
+        rajant_signal_timeout_arg,
         mocha_node,
         translator_node,
         topic_publisher_node
