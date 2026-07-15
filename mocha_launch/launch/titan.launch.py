@@ -107,7 +107,8 @@ def generate_launch_description():
             'robot_name': robot_name,
             'robot_configs': robot_configs,
             'topic_configs': topic_configs,
-            'radio_configs': radio_configs
+            'radio_configs': radio_configs,
+            'wifi_backup_period': wifi_backup_period
         }.items()
     )
 

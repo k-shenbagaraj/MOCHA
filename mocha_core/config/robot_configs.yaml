@@ -1,59 +1,97 @@
 basestation:
   node-type: "base_station"
-  IP-address: "10.10.10.100"
-  wifi-IP-address: ""
-  using-radio: "brick-1"
+  IP-address: "10.10.10.10"
+  wifi-IP-address: "192.168.129.210"
+  using-radio: "cardinal-6"
   base-port: "1234"
   clients:
-    - "callisto"
-    - "europa"
-    - "io"
-    - "titan"
+    - "dione"
+    - "phobos"
+    - "deimos"
+    - "titania"
+    - "aphrodite"
+    - "ares"
 
-europa:
-  node-type: "ground_robot"
-  IP-address: "10.10.10.101"
-  wifi-IP-address: ""
-  using-radio: "blue-2"
-  base-port: "2234"
-  clients:
-    - "basestation"
-    - "callisto"
-    - "io"
-    - "titan"
-
-callisto:
-  node-type: "ground_robot"
-  IP-address: "10.10.10.102"
-  wifi-IP-address: ""
-  using-radio: "blue-6"
-  base-port: "3234"
-  clients:
-    - "basestation"
-    - "europa"
-    - "io"
-    - "titan"
-
-io:
-  node-type: "ground_robot"
-  IP-address: "10.10.10.103"
-  wifi-IP-address: ""
-  using-radio: "blue-5"
-  base-port: "4234"
-  clients:
-    - "basestation"
-    - "europa"
-    - "callisto"
-    - "titan"
-
-titan:
+dione:
   node-type: "aerial_robot"
-  IP-address: "10.10.10.107"
-  wifi-IP-address: ""
-  using-radio: "blue-1"
+  IP-address: "10.10.10.106"
+  wifi-IP-address: "192.168.129.106"
+  using-radio: "dx4-5"
   base-port: "6234"
   clients:
     - "basestation"
-    - "callisto"
-    - "europa"
-    - "io"
+    - "phobos"
+    - "deimos"
+    - "titania"
+    - "aphrodite"
+    - "ares"
+
+phobos:
+  node-type: "ground_robot"
+  IP-address: "10.10.10.111"
+  wifi-IP-address: "192.168.129.111"
+  using-radio: "deep-blue-3"
+  base-port: "2234"
+  clients:
+    - "basestation"
+    - "dione"
+    - "deimos"
+    - "titania"
+    - "aphrodite"
+    - "ares"
+
+deimos:
+  node-type: "ground_robot"
+  IP-address: "10.10.10.112"
+  wifi-IP-address: "192.168.129.112"
+  using-radio: "deep-blue-4"
+  base-port: "3234"
+  clients:
+    - "basestation"
+    - "phobos"
+    - "dione"
+    - "titania"
+    - "aphrodite"
+    - "ares"
+
+titania:
+  node-type: "ground_robot"
+  IP-address: "10.10.10.114"
+  wifi-IP-address: "192.168.129.114"
+  using-radio: "deep-blue-5"
+  base-port: 5254
+  clients:
+    - "basestation"
+    - "phobos"
+    - "deimos"
+    - "dione"
+    - "aphrodite"
+    - "ares"
+
+aphrodite:
+  node-type: "ground_robot"
+  IP-address: "10.10.10.121"
+  wifi-IP-address: "192.168.129.121"
+  using-radio: "cardinal-5"
+  base-port: 5545
+  clients:
+    - "basestation"
+    - "phobos"
+    - "deimos"
+    - "titania"
+    - "dione"
+    - "ares"
+
+ares:
+  node-type: "ground_robot"
+  IP-address: "10.10.10.122"
+  wifi-IP-address: "192.168.129.122"
+  using-radio: "cardinal-4"
+  base-port: 5445
+  clients:
+    - "basestation"
+    - "phobos"
+    - "deimos"
+    - "titania"
+    - "dione"
+    - "aphrodite"

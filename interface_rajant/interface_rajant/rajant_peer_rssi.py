@@ -286,7 +286,11 @@ class RajantPeerRSSI(Node):
                 continue
             # Process regular messages
             data = data.replace(';\n', '')  # Remove end line
-            ts, iface, peer, rssi = data.split(',')
+            try:
+                ts, iface, peer, rssi = data.split(',')
+            except ValueError:
+                self.get_logger().debug(f'{self.this_robot} - Rajant Peer RSSI - Unexpected output from Java process: {data}')
+                continue
             # Cleanup things
             ts = int(ts.replace('Ts:', ''))
             iface = iface.replace('Iface:', '')

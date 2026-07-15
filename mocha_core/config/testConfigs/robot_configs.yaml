@@ -1,7 +1,6 @@
 basestation:
   node-type: "base_station"
   IP-address: "127.0.0.1"
-  wifi-IP-address: "127.0.0.1"
   using-radio: "brick-1"
   base-port: "1234"
   clients:
@@ -12,7 +11,6 @@ basestation:
 charon:
   node-type: "ground_robot"
   IP-address: "127.0.0.1"
-  wifi-IP-address: "127.0.0.1"
   using-radio: "black-1"
   base-port: "2234"
   clients:
@@ -23,7 +21,6 @@ charon:
 styx:
   node-type: "ground_robot"
   IP-address: "127.0.0.1"
-  wifi-IP-address: "127.0.0.1"
   using-radio: "black-2"
   base-port: "3234"
   clients:
@@ -34,7 +31,6 @@ styx:
 quad1:
   node-type: "aerial_robot"
   IP-address: "127.0.0.1"
-  wifi-IP-address: "127.0.0.1"
   using-radio: "blue-1"
   base-port: "4234"
   clients:
